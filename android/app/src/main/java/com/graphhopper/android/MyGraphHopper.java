@@ -1,5 +1,7 @@
 package com.graphhopper.android;
 
+import android.util.Log;
+
 import com.graphhopper.GraphHopper;
 import com.graphhopper.routing.util.DataFlagEncoder;
 import com.graphhopper.routing.util.DefaultEdgeFilter;
@@ -13,6 +15,7 @@ import com.graphhopper.routing.weighting.PriorityWeighting;
 import com.graphhopper.routing.weighting.ShortFastestWeighting;
 import com.graphhopper.routing.weighting.ShortestWeighting;
 import com.graphhopper.routing.weighting.Weighting;
+import com.graphhopper.storage.DAType;
 import com.graphhopper.storage.Graph;
 import com.graphhopper.storage.GraphEdgeIdFinder;
 import com.graphhopper.util.Parameters;
@@ -26,28 +29,9 @@ public class MyGraphHopper extends GraphHopper {
     @Override
     public Weighting createWeighting(HintsMap hintsMap, FlagEncoder encoder, Graph graph) {
         String weightingStr = hintsMap.getWeighting().toLowerCase();
-        Weighting weighting = null;
-
-        if (encoder.supports(GenericWeighting.class)) {
-            weighting = new GenericWeighting((DataFlagEncoder) encoder, hintsMap);
-        } else if ("shortest".equalsIgnoreCase(weightingStr)) {
-            weighting = new ShortestWeighting(encoder);
-        } else if ("fastest".equalsIgnoreCase(weightingStr) || weightingStr.isEmpty()) {
-            if (encoder.supports(PriorityWeighting.class))
-                weighting = new PriorityWeighting(encoder, hintsMap);
-            else
-                weighting = new FastestWeighting(encoder, hintsMap);
-        } else if ("curvature".equalsIgnoreCase(weightingStr)) {
-            if (encoder.supports(CurvatureWeighting.class))
-                weighting = new CurvatureWeighting(encoder, hintsMap);
-
-        } else if ("short_fastest".equalsIgnoreCase(weightingStr)) {
-            weighting = new ShortFastestWeighting(encoder, hintsMap);
-        }
-
-        if (weighting == null)
-            throw new IllegalArgumentException("weighting " + weighting + " not supported");
-
-        return weighting;
+        Log.d("IN CREATE WEIGHTING", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!********************************************");
+        hintsMap.setWeighting("fastest");
+        //Weighting sup = super.createWeighting(hintsMap,encoder,(Graph)null);
+        return new CustomWeighting(encoder, hintsMap);
     }
 }

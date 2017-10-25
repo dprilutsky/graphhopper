@@ -27,6 +27,8 @@ import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.PathWrapper;
+import com.graphhopper.reader.osm.GraphHopperOSM;
+import com.graphhopper.routing.util.EncodingManager;
 import com.graphhopper.util.Constants;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.Parameters.Algorithms;
@@ -66,7 +68,7 @@ import java.util.TreeMap;
 public class MainActivity extends Activity {
     private static final int NEW_MENU_ID = Menu.FIRST + 1;
     private MapView mapView;
-    private GraphHopper hopper;
+    private GraphHopperOSM hopper;
     private GeoPoint start;
     private GeoPoint end;
     private Spinner localSpinner;
@@ -381,8 +383,21 @@ public class MainActivity extends Activity {
         logUser("loading graph (" + Constants.VERSION + ") ... ");
         new GHAsyncTask<Void, Void, Path>() {
             protected Path saveDoInBackground(Void... v) throws Exception {
-                GraphHopper tmpHopp = new GraphHopper().forMobile();
-                tmpHopp.load(new File(mapsFolder, currentArea).getAbsolutePath() + "-gh");
+
+                String tmpOsmFile = new File(mapsFolder, "ny.osm.pbf").getAbsolutePath();
+                String tmpGraphFile = mapsFolder.getAbsolutePath();
+                GraphHopperOSM tmpHopp = new GraphHopperOSM();
+                tmpHopp.setOSMFile(tmpOsmFile);
+                tmpHopp.setStoreOnFlush(true);
+                tmpHopp.setGraphHopperLocation(tmpGraphFile);
+                tmpHopp.setEncodingManager(new EncodingManager("bike,car"));
+                tmpHopp.importOrLoad();
+
+                //Original
+//                MyGraphHopper tmpHopp = new MyGraphHopper();
+//                tmpHopp.setEncodingManager(new EncodingManager(new DangerFlagEncoder()));
+//                tmpHopp.forMobile();
+//                tmpHopp.load(new File(mapsFolder, currentArea).getAbsolutePath() + "-gh");
                 log("found graph " + tmpHopp.getGraphHopperStorage().toString() + ", nodes:" + tmpHopp.getGraphHopperStorage().getNodes());
                 hopper = tmpHopp;
                 return null;
@@ -444,6 +459,7 @@ public class MainActivity extends Activity {
                         setAlgorithm(Algorithms.DIJKSTRA_BI);
                 req.getHints().
                         put(Routing.INSTRUCTIONS, "false");
+                req.setVehicle("car");
                 GHResponse resp = hopper.route(req);
                 time = sw.stop().getSeconds();
                 return resp.getBest();
