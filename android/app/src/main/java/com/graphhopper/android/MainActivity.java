@@ -387,11 +387,13 @@ public class MainActivity extends Activity {
                 String tmpOsmFile = new File(mapsFolder, "ny.osm.pbf").getAbsolutePath();
                 String tmpGraphFile = mapsFolder.getAbsolutePath();
                 GraphHopperOSM tmpHopp = new GraphHopperOSM();
+                tmpHopp.forMobile();
                 tmpHopp.setOSMFile(tmpOsmFile);
                 tmpHopp.setStoreOnFlush(true);
                 tmpHopp.setGraphHopperLocation(tmpGraphFile);
                 tmpHopp.setEncodingManager(new EncodingManager("bike,car"));
                 tmpHopp.importOrLoad();
+                Log.d("VERY IMPORTANT", "!!!!!!!!!MADE IT THROUGH STARTUP!!!!!!!!!*****************");
 
                 //Original
 //                MyGraphHopper tmpHopp = new MyGraphHopper();
