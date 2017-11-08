@@ -3,6 +3,7 @@ package com.graphhopper.android;
 import android.util.Log;
 
 import com.graphhopper.GraphHopper;
+import com.graphhopper.reader.osm.GraphHopperOSM;
 import com.graphhopper.routing.util.DataFlagEncoder;
 import com.graphhopper.routing.util.DefaultEdgeFilter;
 import com.graphhopper.routing.util.FlagEncoder;
@@ -24,7 +25,7 @@ import com.graphhopper.util.Parameters;
  * Created by David Prilutsky on 10/15/2017.
  */
 
-public class MyGraphHopper extends GraphHopper {
+public class MyGraphHopperOSM extends GraphHopperOSM {
 
     @Override
     public Weighting createWeighting(HintsMap hintsMap, FlagEncoder encoder, Graph graph) {

@@ -28,8 +28,14 @@ import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.PathWrapper;
 import com.graphhopper.reader.osm.GraphHopperOSM;
+import com.graphhopper.routing.util.CarFlagEncoder;
+import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.routing.util.EncodingManager;
+import com.graphhopper.storage.index.LocationIndex;
+import com.graphhopper.storage.index.QueryResult;
 import com.graphhopper.util.Constants;
+import com.graphhopper.util.EdgeIterator;
+import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.Parameters.Algorithms;
 import com.graphhopper.util.Parameters.Routing;
@@ -68,7 +74,7 @@ import java.util.TreeMap;
 public class MainActivity extends Activity {
     private static final int NEW_MENU_ID = Menu.FIRST + 1;
     private MapView mapView;
-    private GraphHopperOSM hopper;
+    private GraphHopper hopper;
     private GeoPoint start;
     private GeoPoint end;
     private Spinner localSpinner;
@@ -84,6 +90,26 @@ public class MainActivity extends Activity {
     private File mapsFolder;
     private ItemizedLayer<MarkerItem> itemizedLayer;
     private PathLayer pathLayer;
+    private final double[] lon = {-71.086477};
+    private final double[] lat = {41.910942};
+
+    void buildDangerEdges()
+    {
+        LocationIndex index = hopper.getLocationIndex();
+        for(int i = 0; i < vol.length; i++)
+        {
+            GeoPoint p = new GeoPoint(lat[i],lon[i]);
+            QueryResult qr = index.findClosest(p.getLatitude(), p.getLongitude(), EdgeFilter.ALL_EDGES );
+            EdgeIteratorState e = qr.getClosestEdge();
+            Log.d("Edge ","" + e.getEdge());
+            vols.put(e.getEdge(),vol[i]);
+            accs.put(e.getEdge(),acc[i]);
+            SnowStreet sno = new SnowStreet(e.getEdge(), 1, vol[i], acc[i]);
+            snow.add(sno);
+
+        }
+        hopper.setInfo(snow);
+    }
 
     protected boolean onLongPress(GeoPoint p) {
         if (!isReady())
@@ -385,22 +411,28 @@ public class MainActivity extends Activity {
             protected Path saveDoInBackground(Void... v) throws Exception {
 
                 String tmpOsmFile = new File(mapsFolder, "ny.osm.pbf").getAbsolutePath();
-                String tmpGraphFile = mapsFolder.getAbsolutePath();
-                GraphHopperOSM tmpHopp = new GraphHopperOSM();
+                File newFolder = new File(mapsFolder, "ny-gh");
+                if (!newFolder.exists()) newFolder.mkdir();
+                String tmpGraphFile = newFolder.getAbsolutePath();
+                MyGraphHopperOSM tmpHopp = new MyGraphHopperOSM();
                 tmpHopp.forMobile();
                 tmpHopp.setOSMFile(tmpOsmFile);
                 tmpHopp.setStoreOnFlush(true);
                 tmpHopp.setGraphHopperLocation(tmpGraphFile);
-                tmpHopp.setEncodingManager(new EncodingManager("bike,car"));
+                tmpHopp.setEncodingManager(new EncodingManager(new DangerFlagEncoder()));
                 tmpHopp.importOrLoad();
+                EdgeIteratorState allEdges = tmpHopp.getGraphHopperStorage().getAllEdges();
+                for (EdgeIteratorState edge : allEdges) {
+
+                }
                 Log.d("VERY IMPORTANT", "!!!!!!!!!MADE IT THROUGH STARTUP!!!!!!!!!*****************");
 
                 //Original
-//                MyGraphHopper tmpHopp = new MyGraphHopper();
-//                tmpHopp.setEncodingManager(new EncodingManager(new DangerFlagEncoder()));
+//                GraphHopper tmpHopp = new GraphHopper();
+//                tmpHopp.setEncodingManager(new EncodingManager(new CarFlagEncoder()));
 //                tmpHopp.forMobile();
 //                tmpHopp.load(new File(mapsFolder, currentArea).getAbsolutePath() + "-gh");
-                log("found graph " + tmpHopp.getGraphHopperStorage().toString() + ", nodes:" + tmpHopp.getGraphHopperStorage().getNodes());
+//                log("found graph " + tmpHopp.getGraphHopperStorage().toString() + ", nodes:" + tmpHopp.getGraphHopperStorage().getNodes());
                 hopper = tmpHopp;
                 return null;
             }
