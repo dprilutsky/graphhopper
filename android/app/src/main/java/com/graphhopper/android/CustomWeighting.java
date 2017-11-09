@@ -21,7 +21,7 @@ public class CustomWeighting extends FastestWeighting{
     @Override
     public double calcWeight(EdgeIteratorState edge, boolean reverse, int prevOrNextEdgeId) {
         double dan = flagEncoder.getDouble(edge.getFlags(), DangerFlagEncoder.DANGER_KEY);
-        //Log.d("LOGGING THE DANGER", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + Double.toString(dan) + "###############################");
+        Log.d("LOGGING THE DANGER", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" + Double.toString(dan) + "###############################");
         return super.calcWeight(edge, reverse, prevOrNextEdgeId);
     }
 

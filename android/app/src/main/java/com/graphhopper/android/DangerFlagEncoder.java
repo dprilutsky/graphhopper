@@ -57,6 +57,11 @@ public class DangerFlagEncoder extends CarFlagEncoder {
         edge.setFlags(this.dangerEncoder.setValue(edge.getFlags(), 5));
 //        Log.d("IN DANGER", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!APPLY WAY TAGS!!!!!!!!!!********************************************");
     }
+
+    public void setDanger(EdgeIteratorState edge, int danger) {
+        edge.setFlags(this.dangerEncoder.setValue(edge.getFlags(), danger));
+    }
+
     @Override
     public String toString() {
         Log.d("IN DANGER", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!TO STRING!!!!!!!!!!********************************************");

@@ -31,11 +31,15 @@ import com.graphhopper.reader.osm.GraphHopperOSM;
 import com.graphhopper.routing.util.CarFlagEncoder;
 import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.routing.util.EncodingManager;
+import com.graphhopper.routing.util.FlagEncoder;
+import com.graphhopper.storage.GraphHopperStorage;
+import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.storage.index.LocationIndex;
 import com.graphhopper.storage.index.QueryResult;
 import com.graphhopper.util.Constants;
 import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
+import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.Parameters.Algorithms;
 import com.graphhopper.util.Parameters.Routing;
@@ -93,23 +97,23 @@ public class MainActivity extends Activity {
     private final double[] lon = {-71.086477};
     private final double[] lat = {41.910942};
 
-    void buildDangerEdges()
-    {
-        LocationIndex index = hopper.getLocationIndex();
-        for(int i = 0; i < vol.length; i++)
-        {
-            GeoPoint p = new GeoPoint(lat[i],lon[i]);
-            QueryResult qr = index.findClosest(p.getLatitude(), p.getLongitude(), EdgeFilter.ALL_EDGES );
-            EdgeIteratorState e = qr.getClosestEdge();
-            Log.d("Edge ","" + e.getEdge());
-            vols.put(e.getEdge(),vol[i]);
-            accs.put(e.getEdge(),acc[i]);
-            SnowStreet sno = new SnowStreet(e.getEdge(), 1, vol[i], acc[i]);
-            snow.add(sno);
-
-        }
-        hopper.setInfo(snow);
-    }
+//    void buildDangerEdges()
+//    {
+//        LocationIndex index = hopper.getLocationIndex();
+//        for(int i = 0; i < vol.length; i++)
+//        {
+//            GeoPoint p = new GeoPoint(lat[i],lon[i]);
+//            QueryResult qr = index.findClosest(p.getLatitude(), p.getLongitude(), EdgeFilter.ALL_EDGES );
+//            EdgeIteratorState e = qr.getClosestEdge();
+//            Log.d("Edge ","" + e.getEdge());
+//            vols.put(e.getEdge(),vol[i]);
+//            accs.put(e.getEdge(),acc[i]);
+//            SnowStreet sno = new SnowStreet(e.getEdge(), 1, vol[i], acc[i]);
+//            snow.add(sno);
+//
+//        }
+//        hopper.setInfo(snow);
+//    }
 
     protected boolean onLongPress(GeoPoint p) {
         if (!isReady())
@@ -421,10 +425,41 @@ public class MainActivity extends Activity {
                 tmpHopp.setGraphHopperLocation(tmpGraphFile);
                 tmpHopp.setEncodingManager(new EncodingManager(new DangerFlagEncoder()));
                 tmpHopp.importOrLoad();
-                EdgeIteratorState allEdges = tmpHopp.getGraphHopperStorage().getAllEdges();
-                for (EdgeIteratorState edge : allEdges) {
 
+                //Get a new graphStorage that's based on the old one
+                GraphHopperStorage newGraph = GHUtility.newStorage(tmpHopp.getGraphHopperStorage());
+                GraphHopperStorage oldGraph = tmpHopp.getGraphHopperStorage();
+                EdgeIterator allEdges = oldGraph.getAllEdges();
+                DangerFlagEncoder d = (DangerFlagEncoder) tmpHopp.getEncodingManager().getEncoder("car");
+                //IT'S A FEATURE NOT A BUG!!!
+                while (allEdges.next()) {
+                    d.setDanger(allEdges, 7);
                 }
+
+//                EdgeIterator allEdges = oldGraph.getAllEdges();
+//                    while (allEdges.next()) {
+//                    int base = allEdges.getBaseNode();
+//                    int adj = allEdges.getAdjNode();
+//                    DangerFlagEncoder d = (DangerFlagEncoder) tmpHopp.getEncodingManager().getEncoder("car");
+//                    d.setDanger(allEdges, 7);
+//                    allEdges.copyPropertiesTo(newGraph.edge(base, adj));
+//                }
+//
+//                NodeAccess fna = oldGraph.getNodeAccess();
+//                NodeAccess tna = newGraph.getNodeAccess();
+//
+//                int nodes = oldGraph.getNodes();
+//                for (int node = 0; node < nodes; node++) {
+//                    if (tna.is3D())
+//                        tna.setNode(node, fna.getLatitude(node), fna.getLongitude(node), fna.getElevation(node));
+//                    else
+//                        tna.setNode(node, fna.getLatitude(node), fna.getLongitude(node));
+//                }
+//                tmpHopp.setGraphHopperStorage(newGraph);
+
+                //Completed the copying - now we place it back in and save
+
+
                 Log.d("VERY IMPORTANT", "!!!!!!!!!MADE IT THROUGH STARTUP!!!!!!!!!*****************");
 
                 //Original
