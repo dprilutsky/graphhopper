@@ -22,7 +22,7 @@ public class DangerFlagEncoder extends CarFlagEncoder {
         shift = super.defineWayBits(index, shift);
 
         //EncodedValue(String name, int shift, int bits, double factor, long defaultValue, int maxValue)
-        dangerEncoder = new EncodedValue("Danger", shift, 4, 1, 0, 10);
+        dangerEncoder = new EncodedValue("Danger", shift, 4, 1, 1, 10);
         shift += dangerEncoder.getBits();
 
         Log.d("IN DANGER", "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DEFINE WAY BITS!!!!!!!!!!********************************************");

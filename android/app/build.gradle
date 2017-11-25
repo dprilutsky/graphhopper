@@ -3,8 +3,8 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 26
     buildToolsVersion '25.0.2'
-//    targetCompatibility = '1.7'
-//    sourceCompatibility = '1.7'
+//    targetCompatibility = '1.8'
+//    sourceCompatibility = '1.8'
 
     defaultConfig {
         applicationId "com.graphhopper.android"
@@ -70,4 +70,7 @@ dependencies {
     //    compile 'com.vividsolutions:jts-core:1.14.0'
     compile 'org.slf4j:slf4j-api:1.7.25'
     compile 'org.slf4j:slf4j-android:1.7.25'
+
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+    compile group: 'org.apache.commons', name: 'commons-math3', version: '3.0'
 }

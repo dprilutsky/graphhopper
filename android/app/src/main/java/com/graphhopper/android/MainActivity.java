@@ -68,12 +68,15 @@ import org.oscim.theme.VtmThemes;
 import org.oscim.tiling.source.mapfile.MapFileTileSource;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Scanner;
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 
 public class MainActivity extends Activity {
     private static final int NEW_MENU_ID = Menu.FIRST + 1;
@@ -94,26 +97,95 @@ public class MainActivity extends Activity {
     private File mapsFolder;
     private ItemizedLayer<MarkerItem> itemizedLayer;
     private PathLayer pathLayer;
-    private final double[] lon = {-71.086477};
-    private final double[] lat = {41.910942};
+    private double[] lon = {-73.976027};
+    private double[] lat = {40.748607};
+    private SummaryStatistics accidentStats = new SummaryStatistics();
 
-//    void buildDangerEdges()
-//    {
-//        LocationIndex index = hopper.getLocationIndex();
-//        for(int i = 0; i < vol.length; i++)
-//        {
-//            GeoPoint p = new GeoPoint(lat[i],lon[i]);
-//            QueryResult qr = index.findClosest(p.getLatitude(), p.getLongitude(), EdgeFilter.ALL_EDGES );
-//            EdgeIteratorState e = qr.getClosestEdge();
-//            Log.d("Edge ","" + e.getEdge());
-//            vols.put(e.getEdge(),vol[i]);
-//            accs.put(e.getEdge(),acc[i]);
-//            SnowStreet sno = new SnowStreet(e.getEdge(), 1, vol[i], acc[i]);
-//            snow.add(sno);
-//
-//        }
-//        hopper.setInfo(snow);
-//    }
+    //Given a "accidents.txt" file in maps folder where each line is "lat lon"
+    //This function reads in that file and parses it into our lon lat arrays
+    void updateLonLat() {
+        List<Double> latitude = new ArrayList<Double>();
+        List<Double> longitude = new ArrayList<Double>();
+        Scanner scanner;
+        try {
+            scanner = new Scanner(new File(mapsFolder, "accidents.txt"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            Log.d("UPDATING LON LAT ", "WE DIDN'T FIND THE FILE");
+            return;
+        }
+        while (scanner.hasNextLine()) {
+            latitude.add(scanner.nextDouble());
+            longitude.add(scanner.nextDouble());
+        }
+        lon = new double[longitude.size()];
+        lat = new double[latitude.size()];
+        for (int i = 0; i < lon.length; i++) {
+            lon[i] = longitude.get(i).doubleValue();
+            lat[i] = latitude.get(i).doubleValue();
+        }
+    }
+
+    //Map edges to accident frequency. Return the maximum accident frequency for an edge
+    private int buildAccidentList(MyGraphHopperOSM hopper, Map<Integer, Integer> edgeToAccidentMap) {
+        int maxAccidents = 1;
+        LocationIndex index = hopper.getLocationIndex();
+
+        //Iterate over all accidents
+        for(int i = 0; i < lat.length; i++)
+        {
+            //Find closest edge to accident
+            GeoPoint p = new GeoPoint(lat[i],lon[i]);
+            QueryResult qr = index.findClosest(p.getLatitude(), p.getLongitude(), EdgeFilter.ALL_EDGES );
+            EdgeIteratorState e = qr.getClosestEdge();
+            Log.d("Query result ", "" + qr.toString());
+            //If edge is in map, incriment accident count by 1
+            if (edgeToAccidentMap.containsKey(e.getEdge())) {
+                int accidentCount = edgeToAccidentMap.get(e.getEdge()) + 1;
+                //noinspection Since15
+                edgeToAccidentMap.replace(e.getEdge(), accidentCount);
+                //Increase the maxAccident count if we have a new max
+                if (accidentCount > maxAccidents) maxAccidents = accidentCount;
+            }
+            //Else just initialize danger to be 1
+            else edgeToAccidentMap.put(e.getEdge(),1);
+        }
+        Log.d("MAX ACCIDENT COUNT IS: ", "" + maxAccidents);
+        System.out.print("ACCIDENT COUNTS: ");
+        return maxAccidents;
+    }
+
+    //Return edge's danger given accident frequency of area
+    private int getEdgeDanger(int edge, Map<Integer, Integer> edgeToAccidentMap, int maxAccidents)  {
+        Integer accidentCount = edgeToAccidentMap.get(edge);
+        if (accidentCount != null) {
+            if ((accidentCount * 10 + (maxAccidents - 1)) / maxAccidents == 0) Log.d("calc danger: ", "RETURNING 0 DANGER!!!");
+            Log.d("WE have: ", accidentCount + " accidents. But a danger of: " + (accidentCount * 10 + (maxAccidents - 1)) / maxAccidents);
+            return (accidentCount * 10 + (maxAccidents - 1)) / maxAccidents;
+        }
+        else return 1;
+    }
+
+    //Return edge's danger given accident frequency of area
+    private int getEdgeDangerLog(int edge, Map<Integer, Integer> edgeToAccidentMap, int maxAccidents)  {
+        Integer accidentCount = edgeToAccidentMap.get(edge);
+        if (accidentCount != null) { // / Math.log(1.0 + (double) maxAccidents)
+            return (int) ((Math.log(1.0 + accidentCount) / Math.log(1.0 + maxAccidents)) * 10);
+        }
+        else return 1;
+    }
+
+    //Updated a graphhopper instance to have edges with danger values
+    private void updateGraphWithDanger(MyGraphHopperOSM tmpHopper, Map<Integer, Integer> edgeToAccidentMap, int maxAccidents) {
+        //Retrieve necessary components for modifying graph
+        GraphHopperStorage oldGraph = tmpHopper.getGraphHopperStorage();
+        EdgeIterator allEdges = oldGraph.getAllEdges();
+        DangerFlagEncoder d = (DangerFlagEncoder) tmpHopper.getEncodingManager().getEncoder("car");
+        //Iterate through all edges
+        while (allEdges.next()) {
+            d.setDanger(allEdges, getEdgeDanger(allEdges.getEdge(), edgeToAccidentMap, maxAccidents));
+        }
+    }
 
     protected boolean onLongPress(GeoPoint p) {
         if (!isReady())
@@ -414,11 +486,16 @@ public class MainActivity extends Activity {
         new GHAsyncTask<Void, Void, Path>() {
             protected Path saveDoInBackground(Void... v) throws Exception {
 
+                //Locate file for NYC
                 String tmpOsmFile = new File(mapsFolder, "ny.osm.pbf").getAbsolutePath();
                 File newFolder = new File(mapsFolder, "ny-gh");
                 if (!newFolder.exists()) newFolder.mkdir();
                 String tmpGraphFile = newFolder.getAbsolutePath();
+
+                //Create Graphhopper instance and process OSM
                 MyGraphHopperOSM tmpHopp = new MyGraphHopperOSM();
+                tmpHopp.setCHEnabled(false);
+                Log.d("CH has been enabled: ", "true or false: " + tmpHopp.isCHEnabled());
                 tmpHopp.forMobile();
                 tmpHopp.setOSMFile(tmpOsmFile);
                 tmpHopp.setStoreOnFlush(true);
@@ -426,48 +503,14 @@ public class MainActivity extends Activity {
                 tmpHopp.setEncodingManager(new EncodingManager(new DangerFlagEncoder()));
                 tmpHopp.importOrLoad();
 
+
                 //Get a new graphStorage that's based on the old one
-                GraphHopperStorage newGraph = GHUtility.newStorage(tmpHopp.getGraphHopperStorage());
-                GraphHopperStorage oldGraph = tmpHopp.getGraphHopperStorage();
-                EdgeIterator allEdges = oldGraph.getAllEdges();
-                DangerFlagEncoder d = (DangerFlagEncoder) tmpHopp.getEncodingManager().getEncoder("car");
-                //IT'S A FEATURE NOT A BUG!!!
-                while (allEdges.next()) {
-                    d.setDanger(allEdges, 7);
-                }
-
-//                EdgeIterator allEdges = oldGraph.getAllEdges();
-//                    while (allEdges.next()) {
-//                    int base = allEdges.getBaseNode();
-//                    int adj = allEdges.getAdjNode();
-//                    DangerFlagEncoder d = (DangerFlagEncoder) tmpHopp.getEncodingManager().getEncoder("car");
-//                    d.setDanger(allEdges, 7);
-//                    allEdges.copyPropertiesTo(newGraph.edge(base, adj));
-//                }
-//
-//                NodeAccess fna = oldGraph.getNodeAccess();
-//                NodeAccess tna = newGraph.getNodeAccess();
-//
-//                int nodes = oldGraph.getNodes();
-//                for (int node = 0; node < nodes; node++) {
-//                    if (tna.is3D())
-//                        tna.setNode(node, fna.getLatitude(node), fna.getLongitude(node), fna.getElevation(node));
-//                    else
-//                        tna.setNode(node, fna.getLatitude(node), fna.getLongitude(node));
-//                }
-//                tmpHopp.setGraphHopperStorage(newGraph);
-
-                //Completed the copying - now we place it back in and save
-
-
+                updateLonLat();
+                Map<Integer, Integer> edgeToAccidentMap = new TreeMap<Integer, Integer>();
+                int maxAccidents = buildAccidentList(tmpHopp, edgeToAccidentMap);
+                updateGraphWithDanger(tmpHopp, edgeToAccidentMap, maxAccidents);
                 Log.d("VERY IMPORTANT", "!!!!!!!!!MADE IT THROUGH STARTUP!!!!!!!!!*****************");
 
-                //Original
-//                GraphHopper tmpHopp = new GraphHopper();
-//                tmpHopp.setEncodingManager(new EncodingManager(new CarFlagEncoder()));
-//                tmpHopp.forMobile();
-//                tmpHopp.load(new File(mapsFolder, currentArea).getAbsolutePath() + "-gh");
-//                log("found graph " + tmpHopp.getGraphHopperStorage().toString() + ", nodes:" + tmpHopp.getGraphHopperStorage().getNodes());
                 hopper = tmpHopp;
                 return null;
             }
